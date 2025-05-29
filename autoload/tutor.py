@@ -99,6 +99,11 @@ class VimTutor:
             return self.get_selected()
         return None
 
+    def get_last(self):
+        if len(self.history.entries) == 0:
+            return -1, None
+        return len(self.history.entries) - 1, self.history.get_last_entry()
+
     def get_selected(self):
         if len(self.history.entries) == 0:
             return -1, None
