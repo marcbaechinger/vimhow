@@ -5,116 +5,107 @@ let g:loaded_vimhow = 1
 
 python3 << EOF
 # Imports Python modules to be used by the plugin.
-import queue
 import sys
 import threading
 
-def safe_import(module_names):
+def VimHowSafeImport(module_names):
   for module_name in module_names:
     try:
         __import__(module_name)
-        return True
     except ImportError:
         print(f"Warning: can't import {module_name}")
         return False
+  return True
 
-def append_to_sys_path(paths: list[str]):
+def VimHowAppendToSysPath(paths: list[str]):
   for path in paths:
     evaled_path = vim.eval(f"expand('{path}')")
     sys.path.append(evaled_path)
 
-append_to_sys_path(
+VimHowAppendToSysPath(
   [
     '~/.vim/bundle/vimhow/autoload/', 
     '/Users/marcbaechinger/monolit/code/vimhow/.venv/lib/python3.13/site-packages',  
   ]
 )
-imports_found = safe_import(["google.genai", "tutor"])
-from tutor import VimTutor
-from api_key import get_api_key
+vimHowHasTutor = False
+api_key = None
+vimHowRequiredImports = ["google.genai", "tutor"]
+if VimHowSafeImport(vimHowRequiredImports):
+  from tutor import VimTutor
+  from api_key import get_api_key
+  api_key = get_api_key()
+  vimHowHasTutor = api_key is not None
 
-api_key = get_api_key()
-has_tutor = imports_found and api_key is not None
+vimHowSystemInstruction = (
+    "You are an expert vim tutor."
+    "You give clear an concise advise on how to use vim."
+    "Your output are vim commands or vimscript functions that help the user programming with vim."
+    "Start with the sequence of commands or the functions and then explain step by step how the user can achieve the declared goal."
+    "Format your output in markdown format"
+    "Line width must not exeed 80 characters."
+)
 
-callbackQueue = queue.Queue()
-
-if not imports_found:
-  print("imports not available")
-elif api_key is None:
-  print("please provide and api key")
+if api_key is None:
+  print("please provide an API key as env variable GOOGLE_API_KEY to use the Gemini API")
+elif not vimHowHasTutor:
+  print("some required imports not available out of ", vimHowRequiredImports)
 else:
-  system_instruction = (
-      "You are an expert vim tutor."
-      "You give clear an concise advise on how to use vim."
-      "Your output are vim commands or vimscript function that help the user to edit text with vim."
-      "Start with the sequence of commands or the functions and then explain step by step how the user can achieve the declared goal."
-      "Format your output in markdown format"
-      "Lines must not exeed 80 characters."
-  )
-  tutor = VimTutor(api_key, system_instruction)
+  tutor = VimTutor(api_key, vimHowSystemInstruction)
 
-def setNavigationInfo(index):
+def VimHowSetNavigationInfo(index):
   size = len(tutor.history.entries)
   navigationInfo = f"({index + 1}/{size})"
   vim.command(f"let g:VimHowNavigationInfo = '{navigationInfo}'")
   return navigationInfo
 
-def prompt():
-  prompt = vim.vars['VimHowValue']
-  if prompt is not None:
-    index, historyItem = tutor.prompt(prompt.decode('utf-8'))
-    setNavigationInfo(index)
-    return tutor.get_last_response()
-  else:
-    return "no prompt found in g:VimHowValue"
-
-def promptCallback():
+def VimHowPromptCallback():
   index, historyItem = tutor.get_last()
-  setNavigationInfo(index)
+  VimHowSetNavigationInfo(index)
   vim.command("call VimHowFetchResponse()");
 
-def promptBlocking(prompt):
+def VimHowPromptBlocking(prompt):
   tutor.prompt(prompt.decode('utf-8'))
-  promptCallback()
+  VimHowPromptCallback()
 
-def startPrompAsync():
+def VimHowPromptAsync():
   prompt = vim.vars['VimHowValue']
   thread = threading.Thread(
-      target=promptBlocking,
+      target=VimHowPromptBlocking,
       args = (prompt,)
   )
   thread.daemon = True 
   thread.start()
   return ""
 
-def selectAndReturnPreviousResponse():
+def VimHowSelectAndReturnPreviousResponse():
   prev = tutor.select_previous()
   if prev is None:
     return ""
   size = len(tutor.history.entries)
-  navigationInfo = setNavigationInfo(prev[0])
+  navigationInfo = VimHowSetNavigationInfo(prev[0])
   header = f"# -- {navigationInfo} in history --\n"
   historyItem = prev[1]
   return header + historyItem.response
 
-def selectAndReturnNextResponse():
+def VimHowSelectAndReturnNextResponse():
   nextItem = tutor.select_next()
   if nextItem is None:
     return "" 
   size = len(tutor.history.entries)
   index = nextItem[0]
-  navigationInfo = setNavigationInfo(index)
+  navigationInfo = VimHowSetNavigationInfo(index)
   header = f"# -- {navigationInfo} in history --\n" if index < size else ""
   historyItem = nextItem[1]
   return header + historyItem.response
 
-def getTotalTokenStats():
-  if not has_tutor:
+def VimHowGetTotalTokenStats():
+  if not vimHowHasTutor:
     return "0/0"
   return str(tutor.get_prompt_token_count()) + "/" + str(tutor.get_candidates_token_count())
 
-def getSelectedTokenStats():
-  if not has_tutor:
+def VimHowGetSelectedTokenStats():
+  if not vimHowHasTutor:
     return "-/-"
   _ , historyEvent = tutor.get_selected()
   if historyEvent is not None:
@@ -128,12 +119,12 @@ let s:promptBufferName = expand('~') . '/.vimhow/prompt.vimhow'
 let s:responseBufferName = expand('~') . '/.vimhow/response.md'
 let s:window_counter = 1
 let s:readOnlyMarker = "^>"
-let s:vimHowStatusDefault = "Enter prompt."
-let s:vimHowStatusEditing = "Leave normal mode."
-let s:vimHowStatusEdited = "Press ? to prompt."
-let s:vimHowStatusThinking = "Sent prompt. Thinking..."
-let s:vimHowStatusResponded = "Response written."
-let s:vimHowThinking = 0
+let s:statusDefault = "Enter prompt."
+let s:statusEditing = "Leave normal mode."
+let s:statusEdited = "Press ? to prompt."
+let s:statusThinking = "Sent prompt. Thinking..."
+let s:statusResponded = "Response written."
+let s:isAiThinking = 0
 
 let g:VimHowStatus = "Not yet started"
 let g:VimHowTotalTokenStats = "[-/-]"
@@ -145,11 +136,11 @@ function! s:setVimHowStatus(status)
 endfunction
 
 function! s:getTotalTokenStats()
-  let g:VimHowTotalTokenStats = py3eval('getTotalTokenStats()')
+  let g:VimHowTotalTokenStats = py3eval('VimHowGetTotalTokenStats()')
 endfunction
 
 function! s:getSelectedTokenStats()
-  let g:VimHowSelectedTokenStats = py3eval('getSelectedTokenStats()')
+  let g:VimHowSelectedTokenStats = py3eval('VimHowGetSelectedTokenStats()')
 endfunction
 
 call s:getTotalTokenStats()
@@ -159,7 +150,7 @@ function! s:appendToPrompt(text, markAsReadOnly)
   let winid = s:getPromptWinId()
   if winid != -1
     let lastLine = line('$', winid)
-    let bufname = bufname(t:promptBufferNr)
+    let bufname = bufname(s:promptBufferNr)
     call appendbufline(bufname, lastLine, a:text) 
     let insertion_end = line('$', winid)
     if a:markAsReadOnly
@@ -168,19 +159,19 @@ function! s:appendToPrompt(text, markAsReadOnly)
   endif
 endfunction
 
-function! s:askAgent(prompt)
+function! s:askTutor(prompt)
   let g:VimHowValue = trim(a:prompt)
-  let nothing = py3eval('startPrompAsync()')
-  call s:setVimHowStatus(s:vimHowStatusThinking)
-  let s:vimHowThinking = 1
+  let nothing = py3eval('VimHowPromptAsync()')
+  call s:setVimHowStatus(s:statusThinking)
+  let s:isAiThinking = 1
 endfunction
 
 function! VimHowFetchResponse()
-  let s:vimHowThinking = 0
+  let s:isAiThinking = 0
   let code = py3eval('tutor.get_last_response()')
   call s:renderResponse(code) 
   call s:getSelectedTokenStats()
-  call s:setVimHowStatus(s:vimHowStatusResponded . " ->")
+  call s:setVimHowStatus(s:statusResponded . " ->")
   call s:getTotalTokenStats()
   redraw!
 endfunction
@@ -189,7 +180,7 @@ function! s:renderResponse(code)
   let winid = s:getResponseWinId()
   if winid != -1
     let lastLine = line('$', winid)
-    let bufname = bufname(t:responseBufferNr)
+    let bufname = bufname(s:responseBufferNr)
     call deletebufline(bufname, 1, lastLine)
     call appendbufline(bufname, 1, split(a:code, "\n", 1)) 
   endif
@@ -211,18 +202,18 @@ endfunction
 
 function! s:togglePrompt()
   call s:ensureDirectoryExists(expand('~') . '/.vimhow')
-  if !exists("t:promptBufferNr")
-    let t:windowId = s:window_counter
-    let t:promptBufferNr = 0
-    let t:responseBufferNr = 0
+  if !exists("s:promptBufferNr")
+    let s:windowId = s:window_counter
+    let s:promptBufferNr = 0
+    let s:responseBufferNr = 0
     let s:window_counter = s:window_counter + 1
-    call s:setVimHowStatus(s:vimHowStatusDefault)
+    call s:setVimHowStatus(s:statusDefault)
   endif
-  if t:promptBufferNr && bufexists(s:promptBufferName)
-    execute 'bd!' t:promptBufferNr
-    execute 'bd!' t:responseBufferNr
-    let t:promptBufferNr = 0
-    let t:responseBufferNr = 0
+  if s:promptBufferNr && bufexists(s:promptBufferName)
+    execute 'bd!' s:promptBufferNr
+    execute 'bd!' s:responseBufferNr
+    let s:promptBufferNr = 0
+    let s:responseBufferNr = 0
   else
     let old_splitright = &splitright
     set splitright
@@ -237,8 +228,8 @@ function! s:togglePrompt()
     setlocal bufhidden=hide
     setlocal nobuflisted
     setlocal noswapfile
-    let t:promptBufferNr = bufnr(s:promptBufferName)
-    let t:responseBufferNr = bufnr(s:responseBufferName)
+    let s:promptBufferNr = bufnr(s:promptBufferName)
+    let s:responseBufferNr = bufnr(s:responseBufferName)
     let &splitright = old_splitright
     silent! execute '$'
     normal! ^
@@ -247,12 +238,12 @@ endfunction
 
 function! s:how(query)
     if trim(a:query) ==# ""
-      echomsg "Empty prompt"
-      call s:setVimHowStatus(s:vimHowStatusDefault)
+      call s:echoWarning("Empty prompt")
+      call s:setVimHowStatus(s:statusDefault)
       return
     endif
     let g:VimHowStatus = "Asking tutor..."
-    call s:askAgent(a:query)
+    call s:askTutor(a:query)
 endfunction
 
 function! s:prompt(bufname)
@@ -264,19 +255,19 @@ function! s:prompt(bufname)
     let filteredLines = filter(lines, 'v:val !~# "^>"')
     if len(filteredLines) < 1
       echomsg "Empty prompt"
-      call s:setVimHowStatus(s:vimHowStatusDefault)
+      call s:setVimHowStatus(s:statusDefault)
       return
     endif
     let prompt = join(filteredLines, "\n")
     call s:markLinesReadOnly(0, lastLineNr, s:promptBufferName)
     let g:VimHowStatus = "Asking tutor..."
     write
-    call s:askAgent(prompt)
+    call s:askTutor(prompt)
   endif
 endfunction
 
 function! s:displayPrevious()
-  let response = py3eval('selectAndReturnPreviousResponse()')
+  let response = py3eval('VimHowSelectAndReturnPreviousResponse()')
   if response ==# ''
     echo "Already at the end of the history"
   else
@@ -286,7 +277,7 @@ function! s:displayPrevious()
 endfunction
 
 function! s:displayNext()
-  let response = py3eval('selectAndReturnNextResponse()')
+  let response = py3eval('VimHowSelectAndReturnNextResponse()')
   if response ==# ''
     echo "Already at the actual output"
   else
@@ -304,7 +295,7 @@ function! s:popupPrompt()
 endfunction
 
 function s:hasPrompt()
-  if t:promptBufferNr
+  if s:promptBufferNr
     for line in getbufline(s:promptBufferName, 1, '$')
       if line !~# '^>'
         return 1
@@ -315,23 +306,23 @@ function s:hasPrompt()
 endfunction
 
 function! s:setVimHowStatusAfterEditing()
-  if s:vimHowThinking
+  if s:isAiThinking
     return
   endif
   if s:hasPrompt() == 1
-    call s:setVimHowStatus(s:vimHowStatusEdited)
+    call s:setVimHowStatus(s:statusEdited)
   else
-    call s:setVimHowStatus(s:vimHowStatusDefault)
+    call s:setVimHowStatus(s:statusDefault)
   endif
 endfunction
 
 " UI functions
 
 function! s:getPromptWinId()
-  if !t:promptBufferNr
+  if !s:promptBufferNr
     return -1
   endif
-  let winids = win_findbuf(t:promptBufferNr)
+  let winids = win_findbuf(s:promptBufferNr)
   if !empty(winids)
     return winids[0]
   endif
@@ -339,10 +330,10 @@ function! s:getPromptWinId()
 endfunction
 
 function! s:getResponseWinId()
-  if !t:responseBufferNr
+  if !s:responseBufferNr
     return -1
   endif
-  let winids = win_findbuf(t:responseBufferNr)
+  let winids = win_findbuf(s:responseBufferNr)
   if !empty(winids)
     return winids[0]
   endif
@@ -366,10 +357,19 @@ function! s:urlEncode(str)
   return encoded
 endfunction
 
-function! s:escape(string)
-  let escapedString = substitute(a:string, '\\', '\\\\', 'g')
-  let escapedString = substitute(escapedString, "'", "\\'", 'g')
-  return substitute(escapedString, '\n', '\\n', 'g')
+function! s:echoWarning(message)
+  call s:echoColoredMessage("WarningMsg", a:message)
+endfunction
+ 
+function! s:echoError(message)
+  call s:echoColoredMessage("ErrorMsg", a:message)
+endfunction
+ 
+function! s:echoColoredMessage(color, message)
+  " Use hl groups WarningMsg, ErrorMsg, InfoMsg. See `:h echohl` for details
+  execute 'echohl ' . a:color
+  echomsg a:message
+  echohl None
 endfunction
 
 " define auto commands
@@ -385,14 +385,13 @@ endif
 
 augroup VimHowAutoCommands
   au! BufRead,BufNewFile *.vimhow set filetype=vimhow
-  au! BufEnter,BufLeave *.vimhow :call s:setVimHowStatus(s:vimHowStatusDefault)
-  au! InsertEnter *.vimhow :call s:setVimHowStatus(s:vimHowStatusEditing)
+  au! BufEnter,BufLeave *.vimhow :call s:setVimHowStatus(s:statusDefault)
+  au! InsertEnter *.vimhow :call s:setVimHowStatus(s:statusEditing)
   au! InsertLeave,TextChanged *.vimhow :call s:setVimHowStatusAfterEditing()
 augroup END
 
 augroup VimHowMappings
   autocmd!
-  autocmd FileType vimhow nnoremap <buffer> ? :VimHowPrompt<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-F9> :VimHowPopupPrompt<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-Left> :VimHowSelectPrevious<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-Right> :VimHowSelectNext<CR>
