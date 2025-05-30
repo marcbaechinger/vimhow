@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from google import genai
 from google.genai import types
+import os
 
 __all__ = ["VimTutor"]
 
@@ -14,7 +15,8 @@ def create_chat(api_key: str, model: str, contentConfig: types.GenerateContentCo
     )
 
 class VimTutor:
-    def __init__(self, api_key: str, system_instruction: str) -> None:
+    def __init__(self, api_key: str, system_instruction: str, log_directory: str) -> None:
+        self.log_directory = log_directory + "/" + datetime.now().strftime("%Y%m%d_%H%M%S")
         self.model_name = "gemini-2.0-flash"
         self.selected_index = 0
         self.prompt_count = 0
@@ -52,7 +54,42 @@ class VimTutor:
         self.history.add(prompt, responseText, promptTokens, candidatesTokens)
         self.history.truncate(20)
         self.selected_index = len(self.history.entries) - 1
+        self.dump_report(
+            prompt, 
+            responseText, 
+            promptTokens, 
+            candidatesTokens, 
+            self.prompt_count,
+            self.log_directory)
         return self.get_selected()
+
+    def dump_report(
+        self,
+        prompt: str,
+        response: str,
+        input_tokens: int,
+        output_tokens: int,
+        prompt_sequence: int,
+        directory: str
+    ):
+        now = datetime.now()
+        date_time_string = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        report_header = f"""\n## Turn Report\n
+**When:** {date_time_string}\n**Prompt Sequence:** {prompt_sequence}\n
+### Prompt\n{prompt}
+
+### Token Information\n*   Input Tokens: {input_tokens}\n*   Output Tokens: {output_tokens}\n\n---\n"""
+
+        markdown_content = report_header + response
+
+        # write the file
+        file_name = f"turn-{prompt_sequence}.md"
+        file_path = os.path.join(directory, file_name)
+        os.makedirs(directory, exist_ok=True)
+        with open(file_path, "w") as f:
+            f.write(markdown_content)
+
 
     def get_total_token_count(self):
         return self.prompt_token_count + self.candidates_token_count
@@ -158,7 +195,7 @@ if __name__ == "__main__":
         print(f"total prompts: {agent.prompt_token_count}, total candidates: {agent.candidates_token_count}" )
 
 
-    agent = VimTutor(api_key, system_instruction)
+    agent = VimTutor(api_key, system_instruction, '/tmp')
     prompt = ""
     while prompt is not None:
         prompt = input("# ")

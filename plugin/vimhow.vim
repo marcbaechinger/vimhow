@@ -51,7 +51,8 @@ if api_key is None:
 elif not vimHowHasTutor:
   print("some required imports not available out of ", vimHowRequiredImports)
 else:
-  tutor = VimTutor(api_key, vimHowSystemInstruction)
+  tutor = VimTutor(api_key, vimHowSystemInstruction, vim.eval("expand('~/.vimhow/trace')")
+)
 
 def VimHowSetNavigationInfo(index):
   size = len(tutor.history.entries)
