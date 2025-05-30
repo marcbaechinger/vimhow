@@ -25,14 +25,14 @@ def VimHowAppendToSysPath(paths: list[str]):
 VimHowAppendToSysPath(
   [
     '~/.vim/bundle/vimhow/autoload/', 
-    '/Users/marcbaechinger/monolit/code/vimhow/.venv/lib/python3.13/site-packages',  
+    '~/.vim/bundle/vimhow/.venv/lib/python3.13/site-packages',  
   ]
 )
 vimHowHasTutor = False
 api_key = None
-vimHowRequiredImports = ["google.genai", "tutor"]
+vimHowRequiredImports = ["google.genai", "vimhowtutor"]
 if VimHowSafeImport(vimHowRequiredImports):
-  from tutor import VimTutor
+  from vimhowtutor import VimTutor
   from api_key import get_api_key
   api_key = get_api_key()
   vimHowHasTutor = api_key is not None
@@ -45,28 +45,27 @@ vimHowSystemInstruction = (
     "Format your output in markdown format"
     "Line width must not exeed 80 characters."
 )
-
 if api_key is None:
   print("please provide an API key as env variable GOOGLE_API_KEY to use the Gemini API")
 elif not vimHowHasTutor:
   print("some required imports not available out of ", vimHowRequiredImports)
 else:
-  tutor = VimTutor(api_key, vimHowSystemInstruction, vim.eval("expand('~/.vimhow/trace')")
+  vimTutor = VimTutor(api_key, vimHowSystemInstruction, vim.eval("expand('~/.vimhow/trace')")
 )
 
 def VimHowSetNavigationInfo(index):
-  size = len(tutor.history.entries)
+  size = len(vimTutor.history.entries)
   navigationInfo = f"({index + 1}/{size})"
   vim.command(f"let g:VimHowNavigationInfo = '{navigationInfo}'")
   return navigationInfo
 
 def VimHowPromptCallback():
-  index, historyItem = tutor.get_last()
+  index, historyItem = vimTutor.get_last()
   VimHowSetNavigationInfo(index)
   vim.command("call VimHowFetchResponse()");
 
 def VimHowPromptBlocking(prompt):
-  tutor.prompt(prompt.decode('utf-8'))
+  vimTutor.prompt(prompt.decode('utf-8'))
   VimHowPromptCallback()
 
 def VimHowPromptAsync():
@@ -80,20 +79,20 @@ def VimHowPromptAsync():
   return ""
 
 def VimHowSelectAndReturnPreviousResponse():
-  prev = tutor.select_previous()
+  prev = vimTutor.select_previous()
   if prev is None:
     return ""
-  size = len(tutor.history.entries)
+  size = len(vimTutor.history.entries)
   navigationInfo = VimHowSetNavigationInfo(prev[0])
   header = f"# -- {navigationInfo} in history --\n"
   historyItem = prev[1]
   return header + historyItem.response
 
 def VimHowSelectAndReturnNextResponse():
-  nextItem = tutor.select_next()
+  nextItem = vimTutor.select_next()
   if nextItem is None:
     return "" 
-  size = len(tutor.history.entries)
+  size = len(vimTutor.history.entries)
   index = nextItem[0]
   navigationInfo = VimHowSetNavigationInfo(index)
   header = f"# -- {navigationInfo} in history --\n" if index < size else ""
@@ -103,12 +102,12 @@ def VimHowSelectAndReturnNextResponse():
 def VimHowGetTotalTokenStats():
   if not vimHowHasTutor:
     return "0/0"
-  return str(tutor.get_prompt_token_count()) + "/" + str(tutor.get_candidates_token_count())
+  return str(vimTutor.get_prompt_token_count()) + "/" + str(vimTutor.get_candidates_token_count())
 
 def VimHowGetSelectedTokenStats():
   if not vimHowHasTutor:
     return "-/-"
-  _ , historyEvent = tutor.get_selected()
+  _ , historyEvent = vimTutor.get_selected()
   if historyEvent is not None:
     return str(historyEvent.prompt_token_count) + "/" + str(historyEvent.candidates_token_count)
   else:
@@ -169,7 +168,7 @@ endfunction
 
 function! VimHowFetchResponse()
   let s:isAiThinking = 0
-  let code = py3eval('tutor.get_last_response()')
+  let code = py3eval('vimTutor.get_last_response()')
   call s:renderResponse(code) 
   call s:getSelectedTokenStats()
   call s:setVimHowStatus(s:statusResponded . " ->")
@@ -289,7 +288,7 @@ endfunction
 
 function! s:popupPrompt()
   let lNum = line('.')
-  let prompt = trim(py3eval('tutor.get_selected_prompt()'))
+  let prompt = trim(py3eval('vimTutor.get_selected_prompt()'))
   call setreg("*", prompt)
   let options = #{line: 0, col: 0, title:' Last prompt', time:10000, maxwidth:72, close:'click'}
   call popup_notification(split(prompt, "\n", 1), options)
@@ -393,6 +392,7 @@ augroup END
 
 augroup VimHowMappings
   autocmd!
+  autocmd FileType vimhow nnoremap <buffer> ? :VimHowPrompt<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-F9> :VimHowPopupPrompt<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-Left> :VimHowSelectPrevious<CR>
   autocmd FileType vimhow nnoremap <buffer> <S-Right> :VimHowSelectNext<CR>
