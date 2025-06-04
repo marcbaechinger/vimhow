@@ -1,0 +1,185 @@
+ " VimHow - AI-powered Vim tutor
+
+ *vimhow.txt* For Vim version 9.0.  Last change: 2024 Jun 03
+
+ ==============================================================================
+ Table of Contents                                   *vimhow-contents*
+
+ 1. Introduction                      |vimhow-introduction|
+ 2. Installation                      |vimhow-installation|
+ 3. Usage                             |vimhow-usage|
+ 4. Commands                          |vimhow-commands|
+ 5. Mappings                          |vimhow-mappings|
+ 6. Configuration                     |vimhow-configuration|
+ 7. Troubleshooting                   |vimhow-troubleshooting|
+
+ ==============================================================================
+ 1. Introduction                                  *vimhow-introduction*
+
+ VimHow is a Vim plugin that leverages AI to provide context-aware Vim
+ assistance. It uses the Gemini API to answer your Vim-related questions and
+ provide relevant commands, functions, and explanations directly within Vim.
+
+ Example prompts:
+
+      - "How do I quit Vim?"
+      - "How should I prompt you for getting good advise for using Vim?"
+      - "How does the `range` function work?"
+      - "Recommend key mappings for split and tab navigation"
+      - "Create a function that gets the lines of the Markdown code block that
+         contains the cursor"
+      - "Generate a Vim help file from the vimhow.vim sources below
+         ```vim
+           <copy source into prompt window>
+	 ```"
+      - "Generate a .vimrc for developing a single page application with HTML,
+         CSS and JavaScript. Assume build tooling based on Node.js and add the
+	 commonly used plugins for the vundle plugin manager"
+
+ ==============================================================================
+ 2. Installation                                  *vimhow-installation*
+
+ 1.  **Using vim-plug:**
+
+     Add the following line to your `.vimrc` file within the `plug#begin()`
+     and `plug#end()` block:
+
+         >>
+         Plug 'marcbaechinger/vimhow'  
+         <
+
+     Then, run `:PlugInstall` in Vim to install the plugin.
+
+ 2.  **Dependencies:**
+
+     VimHow requires Python 3 and several Python packages. Ensure you have
+     the following installed:
+
+     -   `google.genai`
+
+     You can install these using pip:
+
+         >>
+         pip3 install google-genai
+         <
+
+ 3. **API Key:**
+
+    VimHow requires a Gemini API key. Set the `GOOGLE_API_KEY` environment
+    variable with your API key.
+
+ ==============================================================================
+ 3. Usage                                         *vimhow-usage*
+
+ 1.  **Toggle the Prompt Window:**
+
+     Press `<S-F6>` to toggle the VimHow prompt window. This will open two
+     split windows: one for entering your prompt and another for displaying
+     the AI-generated response.
+
+ 2.  **Asking Questions:**
+
+     -   In the prompt window (the smaller split), type your Vim-related
+         question.
+     -   Press `?` in normal mode within the prompt window to submit your
+         question to the AI tutor.
+     -   The response will be displayed in the response window (the larger split).
+
+ 3.  **Using the Command Line:**
+
+     You can also use the `:VimHow` command directly from the Vim command line:
+
+         >>
+         :VimHow <your question>
+         <
+
+     Replace `<your question>` with your actual query.
+
+ 4.  **Navigating History:**
+
+     Use the following mappings to navigate through your question history:
+
+     -   `<S-Left>`:  View the previous response.
+     -   `<S-Right>`: View the next response.
+
+==============================================================================
+4. Commands                                      *vimhow-commands*
+
+- `:VimHowTogglePrompt`          *VimHowTogglePrompt*
+  Toggles the VimHow prompt window.
+
+- `:VimHow <query>`              *VimHow*
+  Submits the specified query to the AI tutor.
+
+- `:VimHowPrompt`                *VimHowPrompt*
+  Submits the current content of the prompt window to the AI tutor.
+
+- `:VimHowSelectPrevious`        *VimHowSelectPrevious*
+  Displays the previous response in the history.
+
+- `:VimHowSelectNext`            *VimHowSelectNext*
+  Displays the next response in the history.
+
+- `:VimHowPopupPrompt`           *VimHowPopupPrompt*
+  Displays the last prompt in a popup notification.
+
+- `:VimHowCopyCodeBlock`         *VimHowCopyCodeBlock*
+  Copies a markdown code block to register `a`. Place the cursor inside
+  the code block.
+
+ ==============================================================================
+ 5. Mappings                                      *vimhow-mappings*
+
+ The following mappings are defined for the VimHow file type (`*.vimhow`):
+
+ -   `?`            - Submits the prompt in the prompt window.
+ -   `<S-F9>`       - Displays the last prompt in a popup notification.
+ -   `<S-Left>`     - Navigates to the previous response in the history.
+ -   `<S-Right>`    - Navigates to the next response in the history.
+ -   `C`            - Clears the prompt window (deletes all lines).
+
+ The following global mapping is defined:
+
+ - `<S-F6>`       - Toggles the VimHow prompt window.
+
+ ==============================================================================
+ 6. Configuration                                 *vimhow-configuration*
+
+ The following global variables can be used with your status line plugin
+like Airline.
+
+ -   `g:VimHowStatus`               - Displays current status.
+ -   `g:VimHowTotalTokenStats`      - Displays the total prompt/candidates
+                                      tokens usage.
+ -   `g:VimHowSelectedTokenStats`   - Displays the selected event tokens usage.
+ -   `g:VimHowNavigationInfo`       - Shows navigation info if history is used
+
+ Use with airline filetype overrides:
+
+   ```.vim.rc
+	let g:airline_filetype_overrides = {
+            \ 'vimhow' : ['vimhow 📖 [%{g:vimhowtotaltokenstats}]', '%{g:vimhownavigationinfo} %{g:vimhowstatus} [%{g:vimhowselectedtokenstats}]'],
+       \ }
+   ```
+
+ ==============================================================================
+ 7. Troubleshooting                               *vimhow-troubleshooting*
+
+ -   **"Please provide an API key" error:**
+
+     Ensure that you have set the `GOOGLE_API_KEY` environment variable with
+     your Gemini API key.
+
+ -   **"Can't import module" errors:**
+
+     Make sure that the required Python packages (`google.genai`,
+     `vimhowtutor`) are installed correctly.  
+
+ -   **Plugin not loading:**
+
+     Verify that you have correctly installed the plugin using your plugin
+     manager (e.g., vim-plug).  Also, check for any errors in your `.vimrc`
+     file that might be preventing the plugin from loading.  Use `:messages`
+     in Vim to view any error messages.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

@@ -1,0 +1,16 @@
+VimHow	doc/vimhow.txt	/*VimHow*
+VimHowCopyCodeBlock	doc/vimhow.txt	/*VimHowCopyCodeBlock*
+VimHowPopupPrompt	doc/vimhow.txt	/*VimHowPopupPrompt*
+VimHowPrompt	doc/vimhow.txt	/*VimHowPrompt*
+VimHowSelectNext	doc/vimhow.txt	/*VimHowSelectNext*
+VimHowSelectPrevious	doc/vimhow.txt	/*VimHowSelectPrevious*
+VimHowTogglePrompt	doc/vimhow.txt	/*VimHowTogglePrompt*
+vimhow-commands	doc/vimhow.txt	/*vimhow-commands*
+vimhow-configuration	doc/vimhow.txt	/*vimhow-configuration*
+vimhow-contents	doc/vimhow.txt	/*vimhow-contents*
+vimhow-installation	doc/vimhow.txt	/*vimhow-installation*
+vimhow-introduction	doc/vimhow.txt	/*vimhow-introduction*
+vimhow-mappings	doc/vimhow.txt	/*vimhow-mappings*
+vimhow-troubleshooting	doc/vimhow.txt	/*vimhow-troubleshooting*
+vimhow-usage	doc/vimhow.txt	/*vimhow-usage*
+vimhow.txt	doc/vimhow.txt	/*vimhow.txt*
