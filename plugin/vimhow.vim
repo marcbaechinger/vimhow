@@ -225,6 +225,47 @@ function! s:markLinesReadOnly(start_line, end_line, bufname)
   endwhile
 endfunction
 
+function! s:getMarkdownCodeBlock()
+  let current_line = line('.')
+  let in_code_block = 0
+  let start_line = 0
+  let end_line = 0
+
+  " Check if current line is within a fenced code block
+  for line_num in range(current_line, 1, -1)
+    let line_text = getline(line_num)
+    if line_text =~ '^```\zs\l\+'
+      let in_code_block = 1
+      let start_line = line_num
+      break
+    elseif line_text =~ '^```$'
+      break
+    endif
+  endfor
+
+  if !in_code_block
+    return ''
+  endif
+
+  for line_num in range(current_line, line('$'))
+    let line_text = getline(line_num)
+    if line_text =~ '^```$'
+      let end_line = line_num
+      break
+    endif
+  endfor
+
+  if end_line == 0
+    return ''
+  endif
+
+  " Extract the code block
+  let code_block_lines = getline(start_line + 1, end_line - 1)
+  let code_block = join(code_block_lines, "\n")
+
+  let @a = code_block
+endfunction
+
 function! s:togglePrompt()
   call s:ensureDirectoryExists(expand('~') . '/.vimhow')
   if !exists("s:promptBufferNr")
@@ -406,6 +447,7 @@ if !exists(":VimHowTogglePrompt")
   command -nargs=0  VimHowSelectPrevious :call s:displayPrevious()
   command -nargs=0  VimHowSelectNext :call s:displayNext()
   command -nargs=0  VimHowPopupPrompt :call s:popupPrompt()
+  command -nargs=0  VimHowCopyCodeBlock :call s:getMarkdownCodeBlock()
 endif
 
 augroup VimHowAutoCommands
